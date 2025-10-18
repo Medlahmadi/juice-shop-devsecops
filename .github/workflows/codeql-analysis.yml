@@ -23,7 +23,7 @@ jobs:
         language: [ 'javascript' ]
 
     steps:
-      # 1️⃣ Cloner le dépôt
+      #1️⃣ Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -34,32 +34,60 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended
 
-      # 3️⃣ Créer les dossiers de résultats
-      - name: Prepare results folder
-        run: mkdir -p results report
-
-      # 4️⃣ Exécuter l’analyse CodeQL
+      # 3️⃣ Analyser le code
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
           output: results
 
-      # 5️⃣ Installer l’outil de conversion SARIF → HTML
-      - name: Install sarif-to-html
-        run: npm install -g sarif-to-html
-
-      # 6️⃣ Convertir le rapport SARIF en HTML détaillé
-      - name: Convert SARIF to HTML
+      # 4️⃣ Générer un rapport HTML simple et visuel
+      - name: Generate HTML Report
         run: |
-          sarif-to-html results/${{ matrix.language }}.sarif --output report/codeql-report.html || true
+          mkdir -p report
+          cat > report/codeql-report.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="fr">
+          <head>
+            <meta charset="UTF-8">
+            <title>Rapport CodeQL - OWASP Juice Shop</title>
+            <style>
+              body { font-family: Arial, sans-serif; background-color: #f6f8fa; margin: 20px; }
+              .container { background: white; padding: 30px; border-radius: 10px; max-width: 1000px; margin: auto; }
+              h1 { color: #0366d6; }
+              p { font-size: 16px; }
+              .ok { color: #28a745; font-weight: bold; }
+              .warn { color: #d73a49; font-weight: bold; }
+              pre { background: #f0f0f0; padding: 10px; border-radius: 5px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Analyse CodeQL - OWASP Juice Shop</h1>
+              <p><strong>Status :</strong> <span class="ok">Analyse terminée avec succès ✅</span></p>
+              <p>Ce rapport HTML a été généré automatiquement à partir du pipeline GitHub Actions.</p>
+              <p>Les résultats détaillés des vulnérabilités sont consultables dans l’onglet
+                 <strong>Security → Code Scanning Alerts</strong> de votre dépôt GitHub.</p>
+              <hr>
+              <h2>Récapitulatif :</h2>
+              <ul>
+                <li>Langage : JavaScript/TypeScript</li>
+                <li>Moteur d’analyse : CodeQL</li>
+                <li>Catégories vérifiées : vulnérabilités OWASP (XSS, injections, fuites de données…)</li>
+              </ul>
+              <hr>
+              <p class="warn">⚠️ Pour voir les résultats complets, ouvrez le rapport SARIF depuis GitHub Security.</p>
+            </div>
+          </body>
+          </html>
+          EOF
 
-      # 7️⃣ Sauvegarder les rapports comme artefacts
-      - name: Upload CodeQL Reports
+      # 5️⃣ Sauvegarder le rapport comme artefact
+      - name: Upload Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codeql-reports
+          name: codeql-report
           path: |
-            results/*.sarif
+            results/
             report/codeql-report.html
