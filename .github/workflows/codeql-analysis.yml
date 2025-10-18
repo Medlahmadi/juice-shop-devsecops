@@ -1,6 +1,15 @@
+name: CodeQL Analysis
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
 jobs:
   analyze:
-    name: CodeQL Analysis (JavaScript)
+    name: Analyze with CodeQL (javascript)
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -10,22 +19,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]  # on reste sur JS
+        language: [ 'javascript' ]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Initialiser CodeQL pour JS/TS
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          queries: security-and-quality
 
-      # ⚙️ IMPORTANT : ne pas forcer le build, laisser CodeQL analyser sans npm build
-      - name: Autobuild (recommended)
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      # Lancer l’analyse CodeQL
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+      - name: Convert SARIF to HTML
+        run: |
+          npm install -g sarif-html
+          npx sarif-html codeql-results/javascript.sarif --output results/codeql-report.html || true
+
+      - name: Upload CodeQL Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-report
+          path: results/codeql-report.html
