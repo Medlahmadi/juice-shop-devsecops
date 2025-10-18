@@ -1,0 +1,53 @@
+name: "Snyk Dependency Scan"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  snyk_scan:
+    name: Run Snyk SCA Scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      # 1️⃣ Cloner le dépôt
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Installer Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3️⃣ Installer les dépendances du projet
+      - name: Install dependencies
+        run: npm install
+
+      # 4️⃣ Installer Snyk CLI
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      # 5️⃣ Authentifier Snyk (nécessite un token)
+      - name: Authenticate Snyk
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk auth $SNYK_TOKEN
+
+      # 6️⃣ Lancer le scan Snyk et produire un rapport JSON
+      - name: Run Snyk test
+        continue-on-error: true
+        run: snyk test --json > snyk-report.json
+
+      # 7️⃣ Sauvegarder le rapport JSON comme artifact
+      - name: Upload Snyk Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-vulnerability-report
+          path: snyk-report.json
