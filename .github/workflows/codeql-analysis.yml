@@ -23,52 +23,29 @@ jobs:
         language: [ 'javascript' ]
 
     steps:
-      # 1️⃣ Télécharger le code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Initialiser CodeQL
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
 
-      # 3️⃣ Exécuter l'analyse
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
           output: results
 
-      # 4️⃣ Générer un rapport HTML simple
-      - name: Generate HTML Summary
+      # Générer rapport HTML avec Microsoft SARIF tool
+      - name: Generate HTML Report
         if: always()
         run: |
+          npm install -g @microsoft/sarif-multitool
           mkdir -p report
-          cat > report/codeql-summary.html <<'EOF'
-          <!DOCTYPE html>
-          <html lang="fr">
-          <head>
-            <meta charset="UTF-8">
-            <title>Rapport CodeQL</title>
-            <style>
-              body { font-family: Arial, sans-serif; background: #f6f8fa; padding: 20px; }
-              h1 { color: #0366d6; }
-              .ok { color: #28a745; font-weight: bold; }
-              .warn { color: #d73a49; font-weight: bold; }
-            </style>
-          </head>
-          <body>
-            <h1>Analyse de sécurité CodeQL</h1>
-            <p><strong>Statut :</strong> <span class="ok">Analyse terminée</span></p>
-            <p>Les résultats complets sont disponibles dans l’onglet <b>Security → Code scanning alerts</b> du dépôt GitHub.</p>
-            <p>Ce rapport est un résumé statique généré automatiquement par GitHub Actions.</p>
-          </body>
-          </html>
-          EOF
+          sarif-multitool transform results/javascript.sarif --inline --output report/codeql-report.html
 
-      # 5️⃣ Sauvegarder les artefacts
       - name: Upload Reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,4 +53,4 @@ jobs:
           name: codeql-html-report
           path: |
             results/
-            report/codeql-summary.html
+            report/
