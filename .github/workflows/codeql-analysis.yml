@@ -12,15 +12,17 @@ jobs:
     name: Analyze with CodeQL
     runs-on: ubuntu-latest
     timeout-minutes: 360
+
+    # Permissions requises pour CodeQL
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read       # Requis pour que l'action checkout fonctionne
+      contents: read      # Requis pour que l'action checkout fonctionne
+      security-events: write # Requis pour téléverser les résultats SARIF vers l'onglet Sécurité
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]
+        language: [ 'javascript' ] # 'javascript' couvre aussi TypeScript
 
     steps:
       # Étape 1 : Cloner le dépôt
@@ -32,20 +34,36 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: security-extended
+          # Utilise la suite de requêtes "security-extended" pour une analyse plus approfondie
+          queries: security-extended 
+
+      # ÉTAPE AJOUTÉE : Installer les dépendances (Nécessaire pour l'analyse JS/TS)
+      # Juice Shop utilise npm.
+      - name: Install dependencies
+        run: npm install
+
+      # ÉTAPE AJOUTÉE : Autobuild
+      # CodeQL a besoin de "tracer" le processus de build pour trouver tout le code JS/TS.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
       # Étape 3 : Créer un dossier pour les résultats
+      # Cette étape est bonne, mais l'étape d'analyse le fera aussi.
       - name: Prepare results folder
         run: mkdir -p results
 
       # Étape 4 : Exécuter l’analyse CodeQL
+      # Cette action génère un fichier SARIF ET tente de le téléverser
+      # vers l'onglet Sécurité de GitHub.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          # Spécifie où sauvegarder le fichier SARIF localement
           output: results
 
       # Étape 5 : Sauvegarder le rapport SARIF comme artefact
+      # Ceci est utile pour le débogage ou l'intégration avec d'autres outils.
       - name: Upload SARIF as artifact
         uses: actions/upload-artifact@v4
         if: always()
@@ -53,44 +71,21 @@ jobs:
           name: codeql-sarif
           path: results/*.sarif
 
-      # Étape 6 : Générer un rapport HTML lisible
-      - name: Generate HTML Report
+      # ÉTAPE 6 (MODIFIÉE) : Générer un VRAI rapport HTML à partir du SARIF
+      # Utilise une action dédiée pour convertir le fichier SARIF en HTML.
+      - name: Generate HTML Report from SARIF
+        uses: anchore/sarif-to-html-action@v1.0.10
         if: always()
-        run: |
-          mkdir -p report
-          cat > report/codeql-report.html <<'HTMLEOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>CodeQL Analysis Report</title>
-              <style>
-                  body { font-family: Arial, sans-serif; margin: 20px; background: #f6f8fa; }
-                  .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                  h1 { color: #0366d6; }
-                  p { line-height: 1.5; }
-                  .success { color: #28a745; font-weight: bold; }
-                  .warning { color: #d97706; }
-                  .footer { margin-top: 30px; font-size: 12px; color: #888; }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>CodeQL Security Analysis Report</h1>
-                  <p><strong>Status:</strong> <span class="success">Analysis Completed Successfully</span></p>
-                  <p>This report summarizes the static analysis performed using <strong>GitHub CodeQL</strong> on the OWASP Juice Shop application.</p>
-                  <ul>
-                      <li>Language analyzed: <strong>JavaScript / TypeScript</strong></li>
-                      <li>Tool version: <strong>CodeQL Action v3</strong></li>
-                      <li>Results stored in: <code>results/*.sarif</code></li>
-                  </ul>
-                  <p>View detailed findings under the repository's <strong>Security → Code scanning alerts</strong> tab.</p>
-                  <div class="footer">Generated automatically by GitHub Actions.</div>
-              </div>
-          </body>
-          </html>
-          HTMLEOF
+        with:
+          # Le fichier SARIF généré par CodeQL pour JS s'appellera 'javascript.sarif'
+          sarif_file: results/javascript.sarif
+          # Le fichier HTML de sortie
+          output_file: report/codeql-report.html
+          # Titre personnalisé pour le rapport
+          title: "CodeQL Analysis Report (Juice Shop)"
 
       # Étape 7 : Sauvegarder le rapport HTML comme artefact
+      # Télécharge le rapport HTML généré à l'étape 6.
       - name: Upload HTML Report
         uses: actions/upload-artifact@v4
         if: always()
