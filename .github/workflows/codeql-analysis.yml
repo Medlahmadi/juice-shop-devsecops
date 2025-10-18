@@ -2,10 +2,10 @@ name: CodeQL Analysis
 
 on:
   push:
-    branches: [ "main", "master" ]     # Exécute sur les branches principales
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ]     # Analyse sur les pull requests
-  workflow_dispatch:                   # Permet d’exécuter manuellement le workflow
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   analyze:
@@ -14,47 +14,47 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write           # Nécessaire pour publier les alertes de sécurité
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]     # Analyse du code JS/TS de Juice Shop
+        language: [ 'javascript' ]
 
     steps:
-      # Étape 1 - Récupération du code source
+      # Étape 1 : Récupérer le code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Étape 2 - Initialisation de CodeQL pour JavaScript
+      # Étape 2 : Initialiser CodeQL
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality   # Ensemble de règles de sécurité et qualité
+          queries: security-and-quality
 
-      # Étape 3 - Installation minimale des dépendances (sans scripts ni tests)
+      # Étape 3 : Installer les dépendances sans scripts ni tests
       - name: Install dependencies
         run: |
           npm ci --ignore-scripts || npm install --ignore-scripts
 
-      # Étape 4 - Laisser CodeQL construire le projet automatiquement
+      # Étape 4 : Laisser CodeQL construire automatiquement
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      # Étape 5 - Exécution de l’analyse CodeQL
+      # Étape 5 : Analyse statique
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"  # Catégorie du rapport
+          category: "/language:${{ matrix.language }}"
 
-      # Étape 6 - Conversion optionnelle du rapport en HTML
+      # Étape 6 : (Optionnel) Générer un rapport HTML
       - name: Convert SARIF to HTML
         run: |
           npm install -g sarif-html
           npx sarif-html codeql-results/javascript.sarif --output results/codeql-report.html || true
 
-      # Étape 7 - Sauvegarde du rapport HTML comme artefact téléchargeable
+      # Étape 7 : Sauvegarder le rapport
       - name: Upload CodeQL Report
         uses: actions/upload-artifact@v4
         with:
