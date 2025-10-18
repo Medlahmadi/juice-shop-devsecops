@@ -23,7 +23,7 @@ jobs:
         language: [ 'javascript' ]
 
     steps:
-      #1️⃣ Cloner le dépôt
+      # 1️⃣ Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -34,9 +34,9 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended
 
-      # 3️⃣ Créer un dossier pour les résultats
+      # 3️⃣ Créer les dossiers de résultats
       - name: Prepare results folder
-        run: mkdir -p results
+        run: mkdir -p results report
 
       # 4️⃣ Exécuter l’analyse CodeQL
       - name: Perform CodeQL Analysis
@@ -45,17 +45,19 @@ jobs:
           category: "/language:${{ matrix.language }}"
           output: results
 
-      # 5️⃣ Convertir le fichier SARIF en HTML (rapport détaillé)
+      # 5️⃣ Installer l’outil de conversion SARIF → HTML
+      - name: Install sarif-to-html
+        run: npm install -g sarif-to-html
+
+      # 6️⃣ Convertir le rapport SARIF en HTML détaillé
       - name: Convert SARIF to HTML
-        if: always()
         run: |
-          npm install -g sarif-to-html
           sarif-to-html results/${{ matrix.language }}.sarif --output report/codeql-report.html || true
 
-      # 6️⃣ Sauvegarder le rapport HTML et SARIF comme artefacts
-      - name: Upload Reports
-        uses: actions/upload-artifact@v4
+      # 7️⃣ Sauvegarder les rapports comme artefacts
+      - name: Upload CodeQL Reports
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: codeql-reports
           path: |
