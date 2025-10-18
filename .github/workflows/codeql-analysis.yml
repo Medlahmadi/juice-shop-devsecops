@@ -11,7 +11,6 @@ jobs:
   analyze:
     name: Analyze with CodeQL
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
@@ -32,17 +31,20 @@ jobs:
           languages: ${{ matrix.language }}
           queries: security-extended
 
+      - name: Prepare results folder
+        run: mkdir -p results
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{matrix.language}}"
+          category: "/language:${{ matrix.language }}"
 
       - name: Upload SARIF as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: codeql-sarif
-          path: ${{ github.workspace }}/../results/*.sarif
+          path: results/*.sarif
 
       - name: Generate HTML Report
         if: always()
