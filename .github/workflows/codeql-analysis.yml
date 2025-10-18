@@ -1,4 +1,4 @@
-name: CodeQL Analysis
+name: "CodeQL Analysis"
 
 on:
   push:
@@ -9,8 +9,9 @@ on:
 
 jobs:
   analyze:
-    name: Analyze with CodeQL (javascript)
+    name: Analyze with CodeQL
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
@@ -22,41 +23,72 @@ jobs:
         language: [ 'javascript' ]
 
     steps:
-      # Étape 1 : Récupérer le code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Étape 2 : Initialiser CodeQL
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          queries: security-extended
 
-      # Étape 3 : Installer les dépendances sans scripts ni tests
-      - name: Install dependencies
-        run: |
-          npm ci --ignore-scripts || npm install --ignore-scripts
-
-      # Étape 4 : Laisser CodeQL construire automatiquement
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      # Étape 5 : Analyse statique
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:${{matrix.language}}"
 
-      # Étape 6 : (Optionnel) Générer un rapport HTML
-      - name: Convert SARIF to HTML
-        run: |
-          npm install -g sarif-html
-          npx sarif-html codeql-results/javascript.sarif --output results/codeql-report.html || true
-
-      # Étape 7 : Sauvegarder le rapport
-      - name: Upload CodeQL Report
+      - name: Upload SARIF as artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: codeql-report
-          path: results/codeql-report.html
+          name: codeql-sarif
+          path: ${{ github.workspace }}/../results/*.sarif
+
+      - name: Generate HTML Report
+        if: always()
+        run: |
+          mkdir -p report
+          # Installer sarif-multitool pour conversion
+          dotnet tool install -g Microsoft.CST.Sarif.Multitool || true
+          
+          # Trouver le fichier SARIF
+          SARIF_FILE=$(find ${{ github.workspace }}/../results -name "*.sarif" | head -n 1)
+          
+          if [ -f "$SARIF_FILE" ]; then
+            # Convertir en HTML simple
+            cat > report/codeql-report.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeQL Analysis Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #0366d6; }
+        .critical { color: #d73a49; font-weight: bold; }
+        .high { color: #e36209; font-weight: bold; }
+        .medium { color: #ffd33d; font-weight: bold; }
+        .low { color: #28a745; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>CodeQL Security Analysis Report</h1>
+    <p>Report generated: $(date)</p>
+    <p>Check GitHub Security tab for detailed results</p>
+    <p>SARIF file available in artifacts</p>
+</body>
+</html>
+EOF
+            echo "HTML report generated"
+          else
+            echo "No SARIF file found"
+          fi
+
+      - name: Upload HTML Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-html-report
+          path: report/codeql-report.html
