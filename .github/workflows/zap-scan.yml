@@ -1,0 +1,45 @@
+name: "DAST OWASP ZAP"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  zap_scan:
+    name: OWASP ZAP Dynamic Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Cloner le dépôt
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Démarrer OWASP Juice Shop dans un conteneur Docker
+      - name: Run Juice Shop Container
+        run: |
+          docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
+          echo "⏳ Waiting for Juice Shop to start..."
+          sleep 20
+          curl -I http://localhost:3000 || echo "Juice Shop not responding yet"
+
+      # 3️⃣ Exécuter le scan OWASP ZAP (baseline scan)
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-t http://localhost:3000 -r zap-report.html'
+
+      # 4️⃣ Sauvegarder le rapport HTML
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-report
+          path: zap-report.html
