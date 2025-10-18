@@ -11,6 +11,7 @@ jobs:
   analyze:
     name: Analyze with CodeQL
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
@@ -22,23 +23,29 @@ jobs:
         language: [ 'javascript' ]
 
     steps:
+      # Étape 1 : Cloner le dépôt
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Étape 2 : Initialiser CodeQL
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
 
+      # Étape 3 : Créer un dossier pour les résultats
       - name: Prepare results folder
         run: mkdir -p results
 
+      # Étape 4 : Exécuter l’analyse CodeQL
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          output: results
 
+      # Étape 5 : Sauvegarder le rapport SARIF comme artefact
       - name: Upload SARIF as artifact
         uses: actions/upload-artifact@v4
         if: always()
@@ -46,6 +53,7 @@ jobs:
           name: codeql-sarif
           path: results/*.sarif
 
+      # Étape 6 : Générer un rapport HTML lisible
       - name: Generate HTML Report
         if: always()
         run: |
@@ -57,21 +65,32 @@ jobs:
               <title>CodeQL Analysis Report</title>
               <style>
                   body { font-family: Arial, sans-serif; margin: 20px; background: #f6f8fa; }
-                  .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
+                  .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                   h1 { color: #0366d6; }
+                  p { line-height: 1.5; }
                   .success { color: #28a745; font-weight: bold; }
+                  .warning { color: #d97706; }
+                  .footer { margin-top: 30px; font-size: 12px; color: #888; }
               </style>
           </head>
           <body>
               <div class="container">
                   <h1>CodeQL Security Analysis Report</h1>
-                  <p><strong>Status:</strong> <span class="success">Analysis Completed</span></p>
-                  <p>Check GitHub Security tab for detailed results</p>
+                  <p><strong>Status:</strong> <span class="success">Analysis Completed Successfully</span></p>
+                  <p>This report summarizes the static analysis performed using <strong>GitHub CodeQL</strong> on the OWASP Juice Shop application.</p>
+                  <ul>
+                      <li>Language analyzed: <strong>JavaScript / TypeScript</strong></li>
+                      <li>Tool version: <strong>CodeQL Action v3</strong></li>
+                      <li>Results stored in: <code>results/*.sarif</code></li>
+                  </ul>
+                  <p>View detailed findings under the repository's <strong>Security → Code scanning alerts</strong> tab.</p>
+                  <div class="footer">Generated automatically by GitHub Actions.</div>
               </div>
           </body>
           </html>
           HTMLEOF
 
+      # Étape 7 : Sauvegarder le rapport HTML comme artefact
       - name: Upload HTML Report
         uses: actions/upload-artifact@v4
         if: always()
