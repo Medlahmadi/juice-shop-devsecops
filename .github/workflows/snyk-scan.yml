@@ -1,53 +1,48 @@
-name: "Snyk Dependency Scan"
+name: "SCA using Snyk"
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches:
+      - master
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  security-events: write
 
 jobs:
-  snyk_scan:
-    name: Run Snyk SCA Scan
+  security_testing:
+    name: Security Testing
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
 
     steps:
       # 1️⃣ Cloner le dépôt
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installer Node.js
-      - name: Setup Node.js
+      # 2️⃣ Configurer Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
-      # 3️⃣ Installer les dépendances du projet
-      - name: Install dependencies
+      # 3️⃣ Installer les dépendances
+      - name: Install Dependencies
         run: npm install
 
-      # 4️⃣ Installer Snyk CLI
-      - name: Install Snyk CLI
-        run: npm install -g snyk
-
-      # 5️⃣ Authentifier Snyk (nécessite un token)
-      - name: Authenticate Snyk
+      # 4️⃣ Installer et exécuter Snyk
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/setup@master
+        with:
+          command: snyk test --json-file-output=snyk-results.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk auth $SNYK_TOKEN
 
-      # 6️⃣ Lancer le scan Snyk et produire un rapport JSON
-      - name: Run Snyk test
-        continue-on-error: true
-        run: snyk test --json > snyk-report.json
-
-      # 7️⃣ Sauvegarder le rapport JSON comme artifact
-      - name: Upload Snyk Report
+      # 5️⃣ Sauvegarder le rapport JSON en tant qu’artifact
+      - name: Upload Scan Results
         uses: actions/upload-artifact@v4
         with:
           name: snyk-vulnerability-report
-          path: snyk-report.json
+          path: snyk-results.json
