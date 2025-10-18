@@ -2,10 +2,10 @@ name: CodeQL Analysis
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master" ]     # Exécute sur les branches principales
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]     # Analyse sur les pull requests
+  workflow_dispatch:                   # Permet d’exécuter manuellement le workflow
 
 jobs:
   analyze:
@@ -14,39 +14,47 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
+      security-events: write           # Nécessaire pour publier les alertes de sécurité
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]
+        language: [ 'javascript' ]     # Analyse du code JS/TS de Juice Shop
 
     steps:
+      # Étape 1 - Récupération du code source
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Étape 2 - Initialisation de CodeQL pour JavaScript
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          queries: security-and-quality   # Ensemble de règles de sécurité et qualité
 
+      # Étape 3 - Installation minimale des dépendances (sans scripts ni tests)
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: |
+          npm ci --ignore-scripts || npm install --ignore-scripts
 
+      # Étape 4 - Laisser CodeQL construire le projet automatiquement
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
+      # Étape 5 - Exécution de l’analyse CodeQL
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:${{ matrix.language }}"  # Catégorie du rapport
 
+      # Étape 6 - Conversion optionnelle du rapport en HTML
       - name: Convert SARIF to HTML
         run: |
           npm install -g sarif-html
           npx sarif-html codeql-results/javascript.sarif --output results/codeql-report.html || true
 
+      # Étape 7 - Sauvegarde du rapport HTML comme artefact téléchargeable
       - name: Upload CodeQL Report
         uses: actions/upload-artifact@v4
         with:
